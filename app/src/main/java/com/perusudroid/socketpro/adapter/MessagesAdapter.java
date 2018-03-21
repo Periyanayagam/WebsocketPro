@@ -7,6 +7,7 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
 
+import com.perusudroid.socketpro.Constants;
 import com.perusudroid.socketpro.R;
 import com.perusudroid.socketpro.db.Messages;
 
@@ -22,15 +23,20 @@ public class MessagesAdapter extends ArrayAdapter<Messages> {
         super(context, 0, users);
     }
 
+
+    public void refresh(List<Messages> messagesList) {
+        notifyDataSetChanged();
+    }
+
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         // Get the data item for this position
         Messages messages = getItem(position);
         // Check if an existing view is being reused, otherwise inflate the view
         if (convertView == null) {
-            if(messages.getWho() == 1){
+            if(messages.getWho() == Constants.common.SEND){
                 convertView = LayoutInflater.from(getContext()).inflate(R.layout.inflater_send_msg, parent, false);
-            }else if(messages.getWho() == 2){
+            }else if(messages.getWho() == Constants.common.RECEIVED){
                 convertView = LayoutInflater.from(getContext()).inflate(R.layout.inflater_received_msg, parent, false);
             }
 

@@ -7,16 +7,22 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Binder;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
+import android.os.Messenger;
+import android.os.RemoteException;
 import android.util.Log;
 
 import com.perusudroid.socketpro.Constants;
+import com.perusudroid.socketpro.db.Messages;
 
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 
 /**
  * Created by Perusudroid on 3/10/2018.
@@ -26,9 +32,25 @@ public class SocketService extends Service {
 
 
     private static final String TAG = SocketService.class.getSimpleName();
+    private final IBinder mBinder = new LocalBinder();
     private WebSocketClient mWebSocketClient;
     private boolean isConnected = false;
-    private final IBinder mBinder = new LocalBinder();
+    private ArrayList<Messages> offlineMsgList = new ArrayList<>();
+
+    private Handler mHandler = new Handler(new Handler.Callback() {
+        @Override
+        public boolean handleMessage(Message message) {
+
+            if (message != null) {
+                if (message.arg1 == 1) {
+                    if (offlineMsgList.size() > 0) {
+                        doSendList(offlineMsgList);
+                    }
+                }
+            }
+            return true;
+        }
+    });
 
 
     private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
@@ -37,6 +59,7 @@ public class SocketService extends Service {
             Log.d(TAG, "broadcastReceiver");
             if (intent != null) {
                 if (intent.getAction() != null) {
+                    Log.d(TAG, "onReceive: " + intent.getAction());
                     if (intent.getAction().equals(Constants.broadcasts.DO_REFRESH)) {
                         if (intent.getExtras() != null) {
                             if (intent.getExtras().getBoolean(Constants.bundleKeys.REFERSH_DATA)) {
@@ -46,8 +69,15 @@ public class SocketService extends Service {
                     } else if (intent.getAction().equals(Constants.broadcasts.SOCKET)) {
                         if (intent.getExtras() != null) {
                             Bundle extras = intent.getExtras();
-                            if (extras.getString(Constants.bundleKeys.SOCKET_DATA) != null) {
-                                doSendData(extras.getString(Constants.bundleKeys.SOCKET_DATA));
+                            if (extras.getString(Constants.bundleKeys.SOCKET_DATA_STRING) != null) {
+                                doSendData(extras.getString(Constants.bundleKeys.SOCKET_DATA_STRING),
+                                        extras.getLong(Constants.bundleKeys.SOCKET_DATA_INTEGER)
+                                );
+                            }
+                            if (extras.getParcelableArrayList(Constants.bundleKeys.SOCKET_DATA_LIST) != null) {
+                                offlineMsgList = extras.getParcelableArrayList(Constants.bundleKeys.SOCKET_DATA_LIST);
+                            } else {
+                                Log.e(TAG, "onReceive: doSendList empty");
                             }
                         }
                     }
@@ -57,12 +87,62 @@ public class SocketService extends Service {
         }
     };
 
-    private void doSendData(final String msg) {
+    public boolean isConnected() {
+        return isConnected;
+    }
+
+
+    private void doSendList(final ArrayList<Messages> msg) {
+
+        Log.d(TAG, "doSendList: " + msg.size());
+
         new Thread(
                 new Runnable() {
                     @Override
                     public void run() {
-                        getWebSocketClient().send(msg);
+                        if (isConnected) {
+                            for (int i = 0; i < msg.size(); i++) {
+
+                                Log.d(TAG, "run: isOpen " + mWebSocketClient.isOpen() + " null " + (mWebSocketClient == null));
+
+                                if (mWebSocketClient.isOpen()) {
+                                    mWebSocketClient.send(msg.get(i).getMsg());
+                                    msg.get(i).setSendStatus(Constants.common.MSG_SEND);
+                                } else {
+                                    offlineMsgList.clear();
+                                    offlineMsgList = msg;
+                                }
+                            }
+                            Intent i = new Intent();
+                            i.setAction(Constants.broadcasts.MSG_SEND_REFRESH);
+                            i.putExtra(Constants.bundleKeys.REFERSH_DATA, true);
+                            i.putParcelableArrayListExtra(Constants.bundleKeys.UPDATED_OFFLINE_MSG_LIST, msg);
+                            sendBroadcast(i);
+                        }
+                    }
+                }
+        ).start();
+    }
+
+    private void doSendData(final String msg, long id) {
+
+        new Thread(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        if (isConnected) {
+                            if(mWebSocketClient != null && mWebSocketClient.isOpen()){
+                                mWebSocketClient.send(msg);
+                            }else{
+                                offlineMsgList.add(new Messages());
+                            }
+                            Intent i = new Intent();
+                            i.setAction(Constants.broadcasts.MSG_SEND_REFRESH);
+                            i.putExtra(Constants.bundleKeys.REFERSH_DATA, true);
+                            i.putExtra(Constants.bundleKeys.SOCKET_DATA_INTEGER, id);
+                            sendBroadcast(i);
+                            Log.d(TAG, "run: id " + id);
+                        }
                     }
                 }
         ).start();
@@ -115,17 +195,10 @@ public class SocketService extends Service {
 
     }
 
-    public class LocalBinder extends Binder {
-        SocketService getService() {
-            return SocketService.this;
-        }
-    }
-
     @Override
     public IBinder onBind(Intent intent) {
         return mBinder;
     }
-
 
     private void doConnectWebSocket() {
         Log.d(TAG, "doConnectWebSocket: ");
@@ -141,6 +214,16 @@ public class SocketService extends Service {
             public void onOpen(ServerHandshake handshakedata) {
                 isConnected = true;
                 Log.d(TAG, "onOpen: ");
+
+                Messenger messenger = new Messenger(mHandler);
+                Message msg = Message.obtain();
+                msg.arg1 = 1;
+                try {
+                    messenger.send(msg);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+
             }
 
             @Override
@@ -148,7 +231,7 @@ public class SocketService extends Service {
                 Log.d(TAG, "onMessage: " + message);
                 Intent intent = new Intent();
                 intent.setAction(Constants.broadcasts.SOCKET_MSG_RECEIVED);
-                intent.putExtra(Constants.bundleKeys.SOCKET_DATA, message);
+                intent.putExtra(Constants.bundleKeys.SOCKET_DATA_STRING, message);
                 sendBroadcast(intent);
 
             }
@@ -167,6 +250,12 @@ public class SocketService extends Service {
         };
         mWebSocketClient.setConnectionLostTimeout(30);
         mWebSocketClient.connect();
+    }
+
+    public class LocalBinder extends Binder {
+        SocketService getService() {
+            return SocketService.this;
+        }
     }
 
 }

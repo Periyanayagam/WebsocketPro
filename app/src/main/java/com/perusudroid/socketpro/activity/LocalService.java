@@ -46,8 +46,8 @@ public class LocalService extends Service {
                     } else if (intent.getAction().equals(Constants.broadcasts.SOCKET)) {
                         if (intent.getExtras() != null) {
                             Bundle extras = intent.getExtras();
-                            if (extras.getString(Constants.bundleKeys.SOCKET_DATA) != null) {
-                                doSendData(extras.getString(Constants.bundleKeys.SOCKET_DATA));
+                            if (extras.getString(Constants.bundleKeys.SOCKET_DATA_STRING) != null) {
+                                doSendData(extras.getString(Constants.bundleKeys.SOCKET_DATA_STRING));
                             }
                         }
                     }

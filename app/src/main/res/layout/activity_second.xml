@@ -6,12 +6,15 @@
     android:layout_height="match_parent"
     tools:context=".activity.SecondActivity">
 
-    <ListView
-        android:id="@+id/listview"
+
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/recyclerView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@+id/footer"
-        android:layout_alignParentTop="true" />
+        android:background="#dae2e2e2"
+        android:layout_alignParentTop="true"
+        android:scrollbars="vertical" />
 
     <RelativeLayout
         android:id="@+id/footer"
