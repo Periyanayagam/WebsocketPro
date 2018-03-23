@@ -19,6 +19,7 @@ public class Constants {
     public interface bundleKeys {
         String REFERSH_DATA = "REFERSH_DATA";
         String SOCKET_DATA_STRING = "SOCKET_DATA_STRING";
+        String SOCKET_DATA_OBJECT = "SOCKET_DATA_OBJECT";
         String SOCKET_DATA_INTEGER = "SOCKET_DATA_INTEGER";
         String SOCKET_DATA_LIST= "SOCKET_DATA_LIST";
         String UPDATED_OFFLINE_MSG_LIST= "UPDATED_OFFLINE_MSG_LIST";

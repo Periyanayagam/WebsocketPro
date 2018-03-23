@@ -63,19 +63,26 @@ public class SocketService extends Service {
                     if (intent.getAction().equals(Constants.broadcasts.DO_REFRESH)) {
                         if (intent.getExtras() != null) {
                             if (intent.getExtras().getBoolean(Constants.bundleKeys.REFERSH_DATA)) {
+                                Log.d(TAG, "onReceive: refreshing socket");
                                 doConnectWebSocket();
                             }
                         }
                     } else if (intent.getAction().equals(Constants.broadcasts.SOCKET)) {
                         if (intent.getExtras() != null) {
                             Bundle extras = intent.getExtras();
-                            if (extras.getString(Constants.bundleKeys.SOCKET_DATA_STRING) != null) {
-                                doSendData(extras.getString(Constants.bundleKeys.SOCKET_DATA_STRING),
-                                        extras.getLong(Constants.bundleKeys.SOCKET_DATA_INTEGER)
-                                );
+                            if (extras.get(Constants.bundleKeys.SOCKET_DATA_OBJECT) != null) {
+
+                                Messages msgCrap = (Messages) extras.get(Constants.bundleKeys.SOCKET_DATA_OBJECT);
+
+                                doSendData(msgCrap.getMsg(),
+                                        msgCrap.getId());
                             }
                             if (extras.getParcelableArrayList(Constants.bundleKeys.SOCKET_DATA_LIST) != null) {
-                                offlineMsgList = extras.getParcelableArrayList(Constants.bundleKeys.SOCKET_DATA_LIST);
+                                offlineMsgList.clear();
+                                offlineMsgList.addAll(extras.getParcelableArrayList(Constants.bundleKeys.SOCKET_DATA_LIST));
+                                for (int i = 0; i < offlineMsgList.size(); i++) {
+                                    Log.d(TAG, "onReceive: added list"+ offlineMsgList.get(i).getMsg());
+                                }
                             } else {
                                 Log.e(TAG, "onReceive: doSendList empty");
                             }
@@ -107,17 +114,24 @@ public class SocketService extends Service {
 
                                 if (mWebSocketClient.isOpen()) {
                                     mWebSocketClient.send(msg.get(i).getMsg());
-                                    msg.get(i).setSendStatus(Constants.common.MSG_SEND);
-                                } else {
-                                    offlineMsgList.clear();
-                                    offlineMsgList = msg;
+                                    offlineMsgList.get(i).setSendStatus(Constants.common.MSG_SEND);
+                                   /* Log.d(TAG, "run: removed item "+ msg.get(i).getMsg());
+                                    offlineMsgList.remove(i);*/
                                 }
                             }
-                            Intent i = new Intent();
-                            i.setAction(Constants.broadcasts.MSG_SEND_REFRESH);
-                            i.putExtra(Constants.bundleKeys.REFERSH_DATA, true);
-                            i.putParcelableArrayListExtra(Constants.bundleKeys.UPDATED_OFFLINE_MSG_LIST, msg);
-                            sendBroadcast(i);
+
+                            Log.d(TAG, "run: "+ offlineMsgList.size());
+
+                            for (int i = 0; i < offlineMsgList.size(); i++) {
+                                Log.d("NEWDATA", "service: "+ offlineMsgList.get(i).getMsg() + " status "+ offlineMsgList.get(i).getSendStatus());
+                            }
+
+                            Intent x = new Intent();
+                            x.setAction(Constants.broadcasts.MSG_SEND_REFRESH);
+                            x.putExtra(Constants.bundleKeys.REFERSH_DATA, true);
+                            x.putParcelableArrayListExtra(Constants.bundleKeys.UPDATED_OFFLINE_MSG_LIST, offlineMsgList);
+                            sendBroadcast(x);
+                            offlineMsgList.clear();
                         }
                     }
                 }
@@ -131,17 +145,17 @@ public class SocketService extends Service {
                     @Override
                     public void run() {
                         if (isConnected) {
-                            if(mWebSocketClient != null && mWebSocketClient.isOpen()){
+                            if (mWebSocketClient != null && mWebSocketClient.isOpen()) {
                                 mWebSocketClient.send(msg);
-                            }else{
+                                Intent i = new Intent();
+                                i.setAction(Constants.broadcasts.MSG_SEND_REFRESH);
+                                i.putExtra(Constants.bundleKeys.REFERSH_DATA, true);
+                                i.putExtra(Constants.bundleKeys.SOCKET_DATA_INTEGER, id);
+                                sendBroadcast(i);
+                                Log.d(TAG, "run: id " + id);
+                            } else {
                                 offlineMsgList.add(new Messages());
                             }
-                            Intent i = new Intent();
-                            i.setAction(Constants.broadcasts.MSG_SEND_REFRESH);
-                            i.putExtra(Constants.bundleKeys.REFERSH_DATA, true);
-                            i.putExtra(Constants.bundleKeys.SOCKET_DATA_INTEGER, id);
-                            sendBroadcast(i);
-                            Log.d(TAG, "run: id " + id);
                         }
                     }
                 }

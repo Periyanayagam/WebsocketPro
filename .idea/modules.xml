@@ -3,7 +3,8 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://C:\Users\Intel\AndroidStudioProjects\WebsocketPro\SocketPro.iml" filepath="C:\Users\Intel\AndroidStudioProjects\WebsocketPro\SocketPro.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/WebsocketPro.iml" filepath="$PROJECT_DIR$/.idea/WebsocketPro.iml" />
+      <module fileurl="file://$PROJECT_DIR$/WebsocketPro.iml" filepath="$PROJECT_DIR$/WebsocketPro.iml" />
+      <module fileurl="file://C:\Users\Perusudroid\AndroidStudioProjects\WebsocketPro\.idea\WebsocketPro.iml" filepath="C:\Users\Perusudroid\AndroidStudioProjects\WebsocketPro\.idea\WebsocketPro.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
       <module fileurl="file://C:\Users\Intel\AndroidStudioProjects\WebsocketPro\app\app.iml" filepath="C:\Users\Intel\AndroidStudioProjects\WebsocketPro\app\app.iml" />
     </modules>

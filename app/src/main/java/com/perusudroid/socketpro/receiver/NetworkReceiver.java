@@ -16,17 +16,35 @@ import static android.content.ContentValues.TAG;
  */
 
 public class NetworkReceiver extends BroadcastReceiver {
+
+    private static String TAG = NetworkReceiver.class.getSimpleName();
+
     @Override
     public void onReceive(Context context, Intent intent) {
-        if (intent.getExtras() != null) {
-            if (intent.getBooleanExtra("isDefault", false)) {
-                Log.d("SocketService", "onReceive: ");
-                if (isNetworkAvailable(context)) {
-                    Intent broadcastIntent = new Intent();
-                    broadcastIntent.setAction(Constants.broadcasts.DO_REFRESH);
-                    broadcastIntent.putExtra(Constants.bundleKeys.REFERSH_DATA, true);
-                    context.sendBroadcast(broadcastIntent);
-                    Log.d("SocketService", "onReceive: bc send");
+
+        if (intent.getAction() != null) {
+
+            Log.d(TAG, "onReceive: isDefault " + intent.getExtras().getBoolean("isDefault"));
+
+            if(intent.getExtras().getBoolean("isDefault")){
+                ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+                NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+
+                //if there is a network
+                if (activeNetwork != null) {
+                    //if connected to wifi or mobile data plan
+                    boolean isConnected = (activeNetwork.getType() == ConnectivityManager.TYPE_WIFI || activeNetwork.getType() == ConnectivityManager.TYPE_MOBILE);
+
+                    if (isConnected) {
+                        Log.d(TAG, "onReceive: connected");
+                        Intent broadcastIntent = new Intent();
+                        broadcastIntent.setAction(Constants.broadcasts.DO_REFRESH);
+                        broadcastIntent.putExtra(Constants.bundleKeys.REFERSH_DATA, true);
+                        context.sendBroadcast(broadcastIntent);
+                        Log.d(TAG, "onReceive: bc send");
+                    } else {
+                        Log.d(TAG, "onReceive: disconnected");
+                    }
                 }
             }
         }

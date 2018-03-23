@@ -64,9 +64,9 @@ public class SecondActivity extends AppCompatActivity implements View.OnClickLis
 
                             Bundle ex = intent.getExtras();
 
-                            for (String key:
+                            for (String key :
                                     ex.keySet()) {
-                                Log.d(TAG, "onReceive: key "+ key + " value "+ ex.get(key));
+                                Log.d(TAG, "onReceive: key " + key + " value " + ex.get(key));
                             }
 
                             if (intent.getExtras().getBoolean(Constants.bundleKeys.REFERSH_DATA)) {
@@ -154,11 +154,12 @@ public class SecondActivity extends AppCompatActivity implements View.OnClickLis
 
             case Constants.common.SEND:
                 if (NetworkReceiver.isNetworkAvailable(this)) {
-                    long id = ((AppController) getApplication()).getDaoSession().getMessagesDao().insert(new Messages(null, who, msg, Constants.common.SYNCED, Constants.common.MSG_SENDING));
+                    Messages msgCrap = new Messages(null, who, msg, Constants.common.SYNCED, Constants.common.MSG_SENDING);
+                    long id = ((AppController) getApplication()).getDaoSession().getMessagesDao().insert(msgCrap);
+                    msgCrap.setId(id);
                     Intent intent = new Intent();
                     intent.setAction(Constants.broadcasts.SOCKET);
-                    intent.putExtra(Constants.bundleKeys.SOCKET_DATA_STRING, editTxt.getText().toString().trim());
-                    intent.putExtra(Constants.bundleKeys.SOCKET_DATA_INTEGER, id);
+                    intent.putExtra(Constants.bundleKeys.SOCKET_DATA_OBJECT, msgCrap);
                     sendBroadcast(intent);
                     editTxt.setText("");
                     Log.d(TAG, "onClick: broadcast send");
@@ -183,7 +184,11 @@ public class SecondActivity extends AppCompatActivity implements View.OnClickLis
     }
 
     private void updateDb(List<Messages> listToUpdate) {
+        for (int i = 0; i < listToUpdate.size(); i++) {
+            Log.d("NEWDATA", "activity: "+ listToUpdate.get(i).getMsg() + " id "+ listToUpdate.get(i).getSendStatus());
+        }
         ((AppController) getApplication()).getDaoSession().getMessagesDao().updateInTx(listToUpdate);
+        customAdapter.refresh(listToUpdate);
     }
 
     private void doSendLocalData() {
