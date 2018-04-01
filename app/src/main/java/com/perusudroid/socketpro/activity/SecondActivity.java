@@ -7,8 +7,14 @@ import android.content.IntentFilter;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.LinearSmoothScroller;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
+import android.view.ActionMode;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -18,6 +24,7 @@ import android.widget.Toast;
 import com.perusudroid.socketpro.AppController;
 import com.perusudroid.socketpro.Constants;
 import com.perusudroid.socketpro.R;
+import com.perusudroid.socketpro.RecyclerItemClickListener;
 import com.perusudroid.socketpro.adapter.CustomAdapter;
 import com.perusudroid.socketpro.adapter.IListener;
 import com.perusudroid.socketpro.db.Messages;
@@ -31,11 +38,13 @@ public class SecondActivity extends AppCompatActivity implements View.OnClickLis
 
     private static final String TAG = SecondActivity.class.getSimpleName();
     private ListView listView;
+    ActionMode mActionMode;
     private Button okBtn;
     private EditText editTxt;
     private CustomAdapter customAdapter;
     private RecyclerView recyclerView;
     private List<Messages> messagesList = new ArrayList<>();
+    Menu context_menu;
     private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -105,6 +114,7 @@ public class SecondActivity extends AppCompatActivity implements View.OnClickLis
         setContentView(R.layout.activity_second);
         bindViews();
         setAssets();
+        doSendLocalData();
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(Constants.broadcasts.DO_REFRESH);
         intentFilter.addAction(Constants.broadcasts.SOCKET_MSG_RECEIVED);
@@ -125,18 +135,157 @@ public class SecondActivity extends AppCompatActivity implements View.OnClickLis
     }
 
     private void setAssets() {
+
+        editTxt.setOnTouchListener(
+                new View.OnTouchListener() {
+                    @Override
+                    public boolean onTouch(View view, MotionEvent motionEvent) {
+                        recyclerView.smoothScrollToPosition(messagesList.size());
+                        return false;
+                    }
+                }
+        );
+
+        editTxt.setOnClickListener(this);
         okBtn.setOnClickListener(this);
         messagesList = ((AppController) getApplication()).getDaoSession().getMessagesDao().loadAll();
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        //listView.setAdapter(adapter);
+
+
+        LinearLayoutManager manager = new LinearLayoutManager(this);
+
+        recyclerView.setLayoutManager(manager);
         customAdapter = new CustomAdapter(messagesList, this);
         recyclerView.setAdapter(customAdapter);
-        recyclerView.scrollToPosition(messagesList.size());
+        recyclerView.smoothScrollToPosition(recyclerView.getAdapter().getItemCount() - 1);
+        recyclerView.addOnItemTouchListener(new RecyclerItemClickListener(this, recyclerView, new RecyclerItemClickListener.OnItemClickListener() {
+            @Override
+            public void onItemClick(View view, int position) {
+                if (isMultiSelect)
+                    multi_select(position);
+                //else
+                //Toast.makeText(getApplicationContext(), "Details Page", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onItemLongClick(View view, int position) {
+                if (!isMultiSelect) {
+                    multiselect_list = new ArrayList<Messages>();
+                    isMultiSelect = true;
+
+                    if (mActionMode == null) {
+                        mActionMode = startActionMode(mActionModeCallback);
+                    }
+                }
+
+                multi_select(position);
+
+            }
+        }));
     }
+
+    public void multi_select(int position) {
+        if (mActionMode != null) {
+            if (multiselect_list.contains(messagesList.get(position)))
+                multiselect_list.remove(messagesList.get(position));
+            else
+                multiselect_list.add(messagesList.get(position));
+
+            if (multiselect_list.size() > 0)
+                mActionMode.setTitle("" + multiselect_list.size());
+            else
+                mActionMode.setTitle("");
+
+            refreshAdapter();
+
+        }
+    }
+
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.clear:
+                ((AppController) getApplication()).getDaoSession().getMessagesDao().deleteAll();
+                List<Messages> msg = getOfflineMessages();
+                customAdapter.refresh(msg);
+                break;
+        }
+        return true;
+    }
+
+    private boolean isMultiSelect = false;
+    private ArrayList<Messages> multiselect_list;
+    private ActionMode.Callback mActionModeCallback = new ActionMode.Callback() {
+
+        @Override
+        public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+            // Inflate a menu resource providing context menu items
+            MenuInflater inflater = mode.getMenuInflater();
+            inflater.inflate(R.menu.menu_multi_select, menu);
+            context_menu = menu;
+            return true;
+        }
+
+        @Override
+        public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
+            return false; // Return false if nothing is done
+        }
+
+        @Override
+        public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+            switch (item.getItemId()) {
+                case R.id.action_delete:
+                    if (multiselect_list.size() > 0) {
+
+                        List<Messages> listToDelete = new ArrayList<>();
+                        for (int i = 0; i < multiselect_list.size(); i++) {
+                            listToDelete.add(multiselect_list.get(i));
+                            messagesList.remove(multiselect_list.get(i));
+                        }
+
+                        ((AppController) getApplication()).getDaoSession().getMessagesDao().deleteInTx(listToDelete);
+                        customAdapter.refresh(messagesList);
+
+                        if (mActionMode != null) {
+                            mActionMode.finish();
+                        }
+                    }
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        @Override
+        public void onDestroyActionMode(ActionMode mode) {
+            mActionMode = null;
+            isMultiSelect = false;
+            multiselect_list = new ArrayList<Messages>();
+            refreshAdapter();
+        }
+    };
+
+    private void refreshAdapter() {
+        customAdapter.setSelectedList(multiselect_list);
+        customAdapter.refresh(messagesList);
+    }
+
 
     @Override
     public void onClick(View view) {
         switch (view.getId()) {
+
+            case R.id.edittxt:
+
+                break;
+
             case R.id.ok_btn:
                 if (validated()) {
                     doSaveData(editTxt.getText().toString().trim(), Constants.common.SEND);
@@ -161,12 +310,11 @@ public class SecondActivity extends AppCompatActivity implements View.OnClickLis
                     intent.setAction(Constants.broadcasts.SOCKET);
                     intent.putExtra(Constants.bundleKeys.SOCKET_DATA_OBJECT, msgCrap);
                     sendBroadcast(intent);
-                    editTxt.setText("");
                     Log.d(TAG, "onClick: broadcast send");
                 } else {
                     ((AppController) getApplication()).getDaoSession().getMessagesDao().insert(new Messages(null, who, msg, Constants.common.NOT_SYNCED, Constants.common.MSG_SENDING));
                 }
-
+                editTxt.setText("");
                 break;
 
             case Constants.common.RECEIVED:
@@ -185,14 +333,14 @@ public class SecondActivity extends AppCompatActivity implements View.OnClickLis
 
     private void updateDb(List<Messages> listToUpdate) {
         for (int i = 0; i < listToUpdate.size(); i++) {
-            Log.d("NEWDATA", "activity: "+ listToUpdate.get(i).getMsg() + " id "+ listToUpdate.get(i).getSendStatus());
+            Log.d("NEWDATA", "activity: " + listToUpdate.get(i).getMsg() + " id " + listToUpdate.get(i).getSendStatus());
         }
         ((AppController) getApplication()).getDaoSession().getMessagesDao().updateInTx(listToUpdate);
         customAdapter.refresh(listToUpdate);
     }
 
     private void doSendLocalData() {
-        Log.d(TAG, "doSendLocalData: ");
+
         List<Messages> msg = getOfflineMessages();
 
         Intent intent = new Intent();

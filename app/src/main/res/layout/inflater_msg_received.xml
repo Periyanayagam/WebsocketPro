@@ -28,7 +28,7 @@
                 android:layout_gravity="start"
                 android:layout_margin="5dp"
                 android:autoLink="web"
-                android:background="@drawable/shape_rect"
+                android:background="@drawable/shape_rect_received"
                 android:gravity="start"
                 android:maxWidth="280dp"
                 android:padding="10dp"

@@ -25,6 +25,18 @@ public class CustomAdapter extends RecyclerView.Adapter<CustomAdapter.CustomView
 
     private List<Messages> myList;
     private IListener iListener;
+    public ArrayList<Messages> selected_usersList = new ArrayList<>();
+
+
+    public void setSelectedList(ArrayList<Messages> selected_usersList) {
+        this.selected_usersList = selected_usersList;
+    }
+
+    public void refresh(List<Messages> selectedList) {
+        this.myList = selectedList;
+        this.selected_usersList = selected_usersList;
+        notifyDataSetChanged();
+    }
 
     public CustomAdapter(List<Messages> users, IListener iListener) {
         this.myList = users;
@@ -57,6 +69,12 @@ public class CustomAdapter extends RecyclerView.Adapter<CustomAdapter.CustomView
         Messages msg = myList.get(position);
         holder.txtMsg.setText(msg.getMsg());
         holder.itemView.setTag(msg);
+
+        if(selected_usersList.contains(myList.get(position)))
+            holder.rootLay.setBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.list_item_selected_state));
+        else
+            holder.rootLay.setBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.list_item_normal_state));
+
         if (msg.getSendStatus() == Constants.common.MSG_SENDING) {
             holder.ivStatus.setVisibility(View.VISIBLE);
             holder.ivStatus.setImageResource(R.drawable.ic_access_time_white_24dp);
@@ -64,7 +82,7 @@ public class CustomAdapter extends RecyclerView.Adapter<CustomAdapter.CustomView
             holder.ivStatus.setVisibility(View.VISIBLE);
             holder.ivStatus.setImageResource(R.drawable.ic_done_white_24dp);
         } else if (msg.getSendStatus() == Constants.common.MSG_RECEIVED) {
-          //  holder.ivStatus.setVisibility(View.GONE);
+            //  holder.ivStatus.setVisibility(View.GONE);
         }
     }
 
@@ -73,10 +91,6 @@ public class CustomAdapter extends RecyclerView.Adapter<CustomAdapter.CustomView
         return myList.size();
     }
 
-    public void refresh(List<Messages> selectedList) {
-        this.myList = selectedList;
-        notifyDataSetChanged();
-    }
 
     public class CustomViewHolder extends RecyclerView.ViewHolder {
 
